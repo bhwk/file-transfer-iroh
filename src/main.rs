@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use eframe::{NativeOptions, egui};
 use egui::{RichText, Vec2};
 use egui_file_dialog::FileDialog;
@@ -9,6 +11,7 @@ use tracing::info;
 use tracing_subscriber::fmt::init;
 
 mod iroh_client;
+mod ui;
 
 use tokio_util::sync::CancellationToken;
 
