@@ -1,0 +1,24 @@
+[package]
+name = "file-transfer"
+version = "0.1.0"
+edition = "2024"
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+rustflags = ["-C", "link-arg=-Wl,--as-needed"]
+
+[dependencies]
+anyhow = "1.0.98"
+base64 = "0.22.1"
+eframe = {version = "0.32.0", features=["default", "__screenshot"]}
+egui = "0.32.0"
+egui-file-dialog = "0.11.0"
+egui_extras = {version="0.32.0", features = ["default", "image"]}
+futures = "0.3.31"
+iroh = "0.90.0"
+iroh-blobs = "0.91.0"
+rand = "0.9.2"
+tokio = {version="1.46.1", features=["rt-multi-thread", "macros"]}
+tokio-util = "0.7.15"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
