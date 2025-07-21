@@ -1,6 +1,6 @@
 [package]
 name = "file-transfer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "P2P file transfer client written with Iroh and egui"
 repository = "https://github.com/bhwk/file-transfer-iroh"
