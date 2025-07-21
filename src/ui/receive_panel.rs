@@ -4,19 +4,25 @@ use std::{
 };
 
 use eframe::egui;
-use egui::Vec2;
+use egui::{RichText, Spinner, Vec2};
 use egui_file_dialog::FileDialog;
 
 use crate::iroh_client;
+
+pub struct DownloadStatus {
+    pub message: String,
+    pub progress: f32,
+    pub in_progress: bool,
+    pub done: bool,
+}
 
 pub struct ReceivePanel {
     directory_dialog: FileDialog,
     picked_directory: Option<PathBuf>,
     input_ticket: String,
-    download_status: Arc<Mutex<String>>,
+    download_status: Arc<Mutex<DownloadStatus>>,
     runtime: Arc<tokio::runtime::Runtime>,
 }
-impl ReceivePanel {}
 
 impl Default for ReceivePanel {
     fn default() -> Self {
@@ -33,7 +39,12 @@ impl Default for ReceivePanel {
             picked_directory: None,
             input_ticket: String::from(""),
             runtime,
-            download_status: Arc::new(Mutex::new("No download in progress.".into())),
+            download_status: Arc::new(Mutex::new(DownloadStatus {
+                message: String::from("No download in progress."),
+                progress: 0.0,
+                in_progress: false,
+                done: false,
+            })),
         }
     }
 }
@@ -80,26 +91,49 @@ impl ReceivePanel {
 
                     {
                         let mut lock = download_clone.lock().unwrap();
-                        *lock = "Downloading file now...".to_string();
+                        lock.message = "Downloading file now...".to_string();
                     }
 
                     runtime_clone.spawn(async move {
-                        match iroh_client::receive_file(path_clone, ticket_string.as_str()).await {
-                            Ok(()) => {
-                                let mut lock = download_clone.lock().unwrap();
-                                *lock = "File downloaded.".to_string();
-                            }
+                        {
+                            let mut lock = download_clone.lock().unwrap();
+                            lock.in_progress = true;
+                            lock.done = false;
+                            lock.progress = 0.0;
+                            lock.message = "Starting download...".into();
+                        }
+
+                        match iroh_client::receive_file(
+                            path_clone,
+                            ticket_string.as_str(),
+                            download_clone.clone(),
+                            egui_ctx_clone.clone(),
+                        )
+                        .await
+                        {
+                            Ok(()) => {}
                             Err(e) => {
                                 let mut lock = download_clone.lock().unwrap();
-                                *lock = format!("Error: {e}");
+                                lock.message = format!("Error: {e}");
                             }
                         }
                         egui_ctx_clone.request_repaint();
                     });
                 };
             });
-            ui.add_space(5.0);
-            ui.label(self.download_status.lock().unwrap().to_string());
+            ui.add_space(10.0);
+            let status = self.download_status.lock().unwrap();
+
+            ui.horizontal(|ui| {
+                if status.in_progress {
+                    ui.add(Spinner::new());
+                    ui.label(RichText::new(&status.message).italics());
+                } else if status.done {
+                    ui.label(RichText::new(&status.message).strong());
+                } else {
+                    ui.label(&status.message);
+                }
+            });
         }
     }
 }

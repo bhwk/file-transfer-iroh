@@ -1,10 +1,18 @@
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use futures::StreamExt;
 use iroh::{Endpoint, protocol::Router};
 use iroh_blobs::{BlobsProtocol, store::mem::MemStore, ticket::BlobTicket};
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{
+    fmt::Display,
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
+
+use crate::ui::receive_panel::DownloadStatus;
 
 pub struct BlobData {
     ticket: BlobTicket,
@@ -100,7 +108,12 @@ pub async fn send_file(path: PathBuf, cancel_clone: CancellationToken) -> anyhow
     Ok(blob_data.to_string())
 }
 
-pub async fn receive_file(dir_path: PathBuf, input_ticket: &str) -> anyhow::Result<()> {
+pub async fn receive_file(
+    dir_path: PathBuf,
+    input_ticket: &str,
+    status: Arc<Mutex<DownloadStatus>>,
+    ctx: egui::Context,
+) -> anyhow::Result<()> {
     let endpoint = Endpoint::builder().discovery_n0().bind().await?;
     // create store and blob protocol
     let store = MemStore::new();
@@ -120,11 +133,28 @@ pub async fn receive_file(dir_path: PathBuf, input_ticket: &str) -> anyhow::Resu
     let ticket: BlobTicket = blob_data.ticket;
 
     let downloader = store.downloader(&endpoint);
-    downloader
-        .download(ticket.hash(), Some(ticket.node_addr().node_id))
-        .await?;
+
+    let progress = downloader.download(ticket.hash(), Some(ticket.node_addr().node_id));
+    if let Ok(mut stream) = progress.stream().await {
+        while let Some(item) = stream.next().await {
+            if let iroh_blobs::api::downloader::DownloadProgessItem::Progress(progress) = item {
+                let mut lock = status.lock().unwrap();
+                lock.in_progress = true;
+                lock.message = format!("Downloading: {progress} bytes");
+                ctx.request_repaint();
+            }
+        }
+    }
+
     store.blobs().export(ticket.hash(), abs_path).await?;
     endpoint.close().await;
+
+    {
+        let mut lock = status.lock().unwrap();
+        lock.in_progress = false;
+        lock.message = "Download complete".to_string();
+        ctx.request_repaint();
+    }
 
     Ok(())
 }
