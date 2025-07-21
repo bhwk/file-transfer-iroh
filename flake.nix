@@ -35,6 +35,7 @@
           packages = with pkgs; [
             cargo-cross
             pkgsCross.mingwW64.buildPackages.gcc
+            cargo-dist
           ];
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (

@@ -2,6 +2,15 @@
 name = "file-transfer"
 version = "0.1.0"
 edition = "2024"
+description = "P2P file transfer client written with Iroh and egui"
+repository = "https://github.com/bhwk/file-transfer-iroh"
+authors =["bhwk"]
+
+[package.metadata.wix]
+upgrade-guid = "01EF16E9-7CD6-457B-86C3-FF13DE8D8D26"
+path-guid = "D93074B1-2291-4490-B6A6-E68414EF4A2E"
+license = false
+eula = false
 
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
@@ -22,3 +31,8 @@ tokio = {version="1.46.1", features=["rt-multi-thread", "macros"]}
 tokio-util = "0.7.15"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
